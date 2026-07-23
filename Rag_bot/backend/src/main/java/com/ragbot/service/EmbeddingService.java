@@ -12,7 +12,12 @@ import java.util.List;
 
 /**
  * Wraps calls to the Gemini embedding endpoint
- * (models/text-embedding-004:embedContent).
+ * (models/gemini-embedding-001:embedContent).
+ *
+ * Note: text-embedding-004 was retired by Google — gemini-embedding-001
+ * is the current replacement. It defaults to 3072-dim output, so we
+ * explicitly request outputDimensionality to keep vectors the same size
+ * the Qdrant collection was created with (see gemini.embedding-dimensions).
  *
  * Docs: https://ai.google.dev/gemini-api/docs/embeddings
  */
@@ -25,8 +30,11 @@ public class EmbeddingService {
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    @Value("${gemini.embedding-model:text-embedding-004}")
+    @Value("${gemini.embedding-model:gemini-embedding-001}")
     private String embeddingModel;
+
+    @Value("${gemini.embedding-dimensions:768}")
+    private int embeddingDimensions;
 
     public EmbeddingService(WebClient geminiWebClient) {
         this.geminiWebClient = geminiWebClient;
@@ -41,9 +49,10 @@ public class EmbeddingService {
         String body = """
                 {
                   "model": "models/%s",
-                  "content": { "parts": [ { "text": %s } ] }
+                  "content": { "parts": [ { "text": %s } ] },
+                  "outputDimensionality": %d
                 }
-                """.formatted(embeddingModel, toJsonString(text));
+                """.formatted(embeddingModel, toJsonString(text), embeddingDimensions);
 
         JsonNode response = geminiWebClient.post()
                 .uri(path)
