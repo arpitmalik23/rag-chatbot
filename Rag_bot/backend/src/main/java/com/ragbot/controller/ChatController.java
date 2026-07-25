@@ -59,9 +59,16 @@ public class ChatController {
 
             return ResponseEntity.ok(new ChatResponse(answer, topChunks));
 
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "chat_failed",
+                            "message", e.getMessage(),
+                            "upstreamBody", e.getResponseBodyAsString()
+                    ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "chat_failed", "message", e.getMessage()));
+                    .body(Map.of("error", "chat_failed", "message", String.valueOf(e.getMessage())));
         }
     }
 
