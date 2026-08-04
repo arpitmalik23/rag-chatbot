@@ -13,47 +13,60 @@ import java.util.List;
 
 /**
  * Builds a context-grounded prompt from retrieved chunks and calls
- * Gemini's generateContent endpoint to produce the final answer.
+ * Groq's OpenAI-compatible chat completions endpoint to produce the
+ * final answer.
+ *
+ * Groq only serves open-weight chat models (Llama, Qwen, etc.) — it does
+ * not offer an embeddings endpoint, so embeddings still go through
+ * Gemini via EmbeddingService. Only answer generation is on Groq.
+ *
+ * Docs: https://console.groq.com/docs/openai
  */
 @Service
 public class LlmService {
 
-    private final WebClient geminiWebClient;
+    private final WebClient groqWebClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${gemini.api-key}")
-    private String apiKey;
-
-    @Value("${gemini.chat-model:gemini-1.5-flash}")
+    @Value("${groq.chat-model:llama-3.3-70b-versatile}")
     private String chatModel;
 
-    public LlmService(WebClient geminiWebClient) {
-        this.geminiWebClient = geminiWebClient;
+    public LlmService(WebClient groqWebClient) {
+        this.groqWebClient = groqWebClient;
     }
 
     public String generateAnswer(String question, List<SourceChunk> contextChunks) {
-        String prompt = buildPrompt(question, contextChunks);
+        String systemPrompt = """
+                You are a helpful assistant answering questions about a document.
+                Use ONLY the excerpts the user provides to answer. If the answer
+                isn't in the excerpts, say you don't have enough information in
+                the document. Keep the answer concise and cite excerpt numbers
+                where relevant.
+                """;
+
+        String userPrompt = buildUserPrompt(question, contextChunks);
 
         ObjectNode body = objectMapper.createObjectNode();
-        ArrayNode contents = objectMapper.createArrayNode();
-        ObjectNode content = objectMapper.createObjectNode();
-        ArrayNode parts = objectMapper.createArrayNode();
-        ObjectNode part = objectMapper.createObjectNode();
-        part.put("text", prompt);
-        parts.add(part);
-        content.set("parts", parts);
-        contents.add(content);
-        body.set("contents", contents);
+        body.put("model", chatModel);
+        body.put("temperature", 0.2);
+        body.put("max_tokens", 1024);
 
-        ObjectNode generationConfig = objectMapper.createObjectNode();
-        generationConfig.put("temperature", 0.2);
-        generationConfig.put("maxOutputTokens", 1024);
-        body.set("generationConfig", generationConfig);
+        ArrayNode messages = objectMapper.createArrayNode();
 
-        String path = String.format("/models/%s:generateContent?key=%s", chatModel, apiKey);
+        ObjectNode systemMessage = objectMapper.createObjectNode();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", systemPrompt);
+        messages.add(systemMessage);
 
-        JsonNode response = geminiWebClient.post()
-                .uri(path)
+        ObjectNode userMessage = objectMapper.createObjectNode();
+        userMessage.put("role", "user");
+        userMessage.put("content", userPrompt);
+        messages.add(userMessage);
+
+        body.set("messages", messages);
+
+        JsonNode response = groqWebClient.post()
+                .uri("/chat/completions")
                 .bodyValue(body.toString())
                 .retrieve()
                 .bodyToMono(JsonNode.class)
@@ -62,7 +75,7 @@ public class LlmService {
         return extractText(response);
     }
 
-    private String buildPrompt(String question, List<SourceChunk> contextChunks) {
+    private String buildUserPrompt(String question, List<SourceChunk> contextChunks) {
         StringBuilder context = new StringBuilder();
         for (int i = 0; i < contextChunks.size(); i++) {
             SourceChunk chunk = contextChunks.get(i);
@@ -72,26 +85,18 @@ public class LlmService {
         }
 
         return """
-                You are a helpful assistant answering questions about a document.
-                Use ONLY the excerpts below to answer. If the answer isn't in the
-                excerpts, say you don't have enough information in the document.
-                Keep the answer concise and cite excerpt numbers where relevant.
-
                 Document excerpts:
                 %s
 
                 Question: %s
-
-                Answer:
                 """.formatted(context.toString(), question);
     }
 
     private String extractText(JsonNode response) {
         if (response == null) return "";
-        JsonNode textNode = response
-                .path("candidates").path(0)
-                .path("content").path("parts").path(0)
-                .path("text");
-        return textNode.isMissingNode() ? "" : textNode.asText();
+        JsonNode content = response
+                .path("choices").path(0)
+                .path("message").path("content");
+        return content.isMissingNode() ? "" : content.asText();
     }
 }

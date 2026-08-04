@@ -60,6 +60,8 @@ public class ChatController {
             return ResponseEntity.ok(new ChatResponse(answer, topChunks));
 
         } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            // Surface the upstream (Qdrant/Gemini) error body, not just the status line,
+            // so failures are debuggable from the API response alone.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
                             "error", "chat_failed",

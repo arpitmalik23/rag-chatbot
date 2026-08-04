@@ -32,6 +32,12 @@ public class AppConfig {
     @Value("${upstash.redis.url}")
     private String redisUrl;
 
+    @Value("${groq.api-key}")
+    private String groqApiKey;
+
+    @Value("${groq.base-url:https://api.groq.com/openai/v1}")
+    private String groqBaseUrl;
+
     // ---------- CORS ----------
 
     @Bean
@@ -55,6 +61,17 @@ public class AppConfig {
         return WebClient.builder()
                 .baseUrl(geminiBaseUrl)
                 .defaultHeader("Content-Type", "application/json")
+                .build();
+    }
+
+    // ---------- Groq WebClient ----------
+
+    @Bean
+    public WebClient groqWebClient() {
+        return WebClient.builder()
+                .baseUrl(groqBaseUrl)
+                .defaultHeader("Content-Type", "application/json")
+                .defaultHeader("Authorization", "Bearer " + groqApiKey)
                 .build();
     }
 

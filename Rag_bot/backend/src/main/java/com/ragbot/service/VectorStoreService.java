@@ -57,6 +57,31 @@ public class VectorStoreService {
         } catch (Exception e) {
             // Collection likely already exists — fine to ignore on subsequent boots.
         }
+
+        ensureSessionIdIndex();
+    }
+
+    /**
+     * Qdrant (especially Qdrant Cloud) requires an explicit payload index
+     * before a field can be used in a search filter. Without this, searches
+     * filtered by sessionId fail with a 400 "Index required but not found".
+     * Safe to call repeatedly — Qdrant no-ops if the index already exists.
+     */
+    private void ensureSessionIdIndex() {
+        ObjectNode indexBody = objectMapper.createObjectNode();
+        indexBody.put("field_name", "sessionId");
+        indexBody.put("field_schema", "keyword");
+
+        try {
+            qdrantWebClient.put()
+                    .uri("/collections/" + collectionName + "/index")
+                    .bodyValue(indexBody.toString())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            // Index likely already exists — fine to ignore on subsequent boots.
+        }
     }
 
     /**
