@@ -74,7 +74,35 @@ public class LlmService {
 
         return extractText(response);
     }
+    public String generateGeneralAnswer(String question) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", chatModel);
+        body.put("temperature", 0.5);
+        body.put("max_tokens", 1024);
 
+        ArrayNode messages = objectMapper.createArrayNode();
+
+        ObjectNode systemMessage = objectMapper.createObjectNode();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "You are a helpful, general-purpose assistant. No document has been uploaded yet, so answer from your own knowledge. If the user's question would benefit from a specific document, gently mention they can upload a PDF for more grounded answers.");
+        messages.add(systemMessage);
+
+        ObjectNode userMessage = objectMapper.createObjectNode();
+        userMessage.put("role", "user");
+        userMessage.put("content", question);
+        messages.add(userMessage);
+
+        body.set("messages", messages);
+
+        JsonNode response = groqWebClient.post()
+                .uri("/chat/completions")
+                .bodyValue(body.toString())
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+
+        return extractText(response);
+    }
     private String buildUserPrompt(String question, List<SourceChunk> contextChunks) {
         StringBuilder context = new StringBuilder();
         for (int i = 0; i < contextChunks.size(); i++) {

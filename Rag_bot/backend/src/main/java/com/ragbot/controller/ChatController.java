@@ -39,11 +39,19 @@ public class ChatController {
         this.redisService = redisService;
     }
 
-    @PostMapping
+   @PostMapping
     public ResponseEntity<?> chat(@Valid @RequestBody ChatRequest request) {
         try {
-            List<Float> questionEmbedding = embeddingService.embed(request.getQuestion());
+            boolean hasDocument = redisService.hasAnyDocument(request.getSessionId());
 
+            if (!hasDocument) {
+                // No PDF uploaded yet — answer as a general assistant, no retrieval.
+                String answer = llmService.generateGeneralAnswer(request.getQuestion());
+                redisService.appendChatTurn(request.getSessionId(), request.getQuestion(), answer);
+                return ResponseEntity.ok(new ChatResponse(answer, List.of()));
+            }
+
+            List<Float> questionEmbedding = embeddingService.embed(request.getQuestion());
             List<SourceChunk> topChunks = vectorStoreService.search(
                     questionEmbedding, request.getSessionId(), topK);
 
@@ -54,20 +62,12 @@ public class ChatController {
             }
 
             String answer = llmService.generateAnswer(request.getQuestion(), topChunks);
-
             redisService.appendChatTurn(request.getSessionId(), request.getQuestion(), answer);
-
             return ResponseEntity.ok(new ChatResponse(answer, topChunks));
 
         } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
-            // Surface the upstream (Qdrant/Gemini) error body, not just the status line,
-            // so failures are debuggable from the API response alone.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "error", "chat_failed",
-                            "message", e.getMessage(),
-                            "upstreamBody", e.getResponseBodyAsString()
-                    ));
+                    .body(Map.of("error", "chat_failed", "message", e.getMessage(), "upstreamBody", e.getResponseBodyAsString()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "chat_failed", "message", String.valueOf(e.getMessage())));

@@ -44,6 +44,11 @@ public class RedisService {
             jedis.expire(key, ttlSeconds);
         }
     }
+   public boolean hasAnyDocument(String sessionId) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            return jedis.exists("doc:" + sessionId);
+        }
+    }
 
     public Map<String, String> getDocMetadata(String sessionId) {
         try (Jedis jedis = jedisPool.getResource()) {

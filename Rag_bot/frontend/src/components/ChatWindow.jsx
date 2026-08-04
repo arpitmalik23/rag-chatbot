@@ -67,15 +67,15 @@ export default function ChatWindow({ docReady }) {
 
       <form className="chat-input" onSubmit={handleSend}>
         <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={docReady ? 'Ask a question about the document…' : 'Upload a PDF first…'}
-          disabled={!docReady || sending}
-        />
-        <button type="submit" disabled={!docReady || sending || !input.trim()}>
-          send
-        </button>
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder={docReady ? 'Ask a question about the document…' : 'Ask anything, or upload a PDF for document-specific answers…'}
+        disabled={sending}
+      />
+      <button type="submit" disabled={sending || !input.trim()}>
+        send
+      </button>
       </form>
     </div>
   )
