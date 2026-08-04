@@ -120,7 +120,30 @@ public class VectorStoreService {
                 .bodyToMono(String.class)
                 .block();
     }
+    /**
+    * Deletes all previously stored chunks for a session, so a new upload
+    * replaces the old document instead of being searched alongside it.
+    */
+    public void deleteBySession(String sessionId) {
+        ObjectNode body = objectMapper.createObjectNode();
+        ObjectNode filter = objectMapper.createObjectNode();
+        ArrayNode must = objectMapper.createArrayNode();
+        ObjectNode sessionMatch = objectMapper.createObjectNode();
+        sessionMatch.put("key", "sessionId");
+        ObjectNode matchValue = objectMapper.createObjectNode();
+        matchValue.put("value", sessionId);
+        sessionMatch.set("match", matchValue);
+        must.add(sessionMatch);
+        filter.set("must", must);
+        body.set("filter", filter);
 
+        qdrantWebClient.post()
+                .uri("/collections/" + collectionName + "/points/delete")
+                .bodyValue(body.toString())
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+    }
     /**
      * Searches for the top-k chunks closest to the query embedding,
      * scoped to the given session so one user's documents don't leak

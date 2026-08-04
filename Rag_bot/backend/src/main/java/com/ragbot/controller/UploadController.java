@@ -61,7 +61,8 @@ public class UploadController {
             for (int i = 0; i < chunks.size(); i++) {
                 chunks.get(i).setEmbedding(embeddings.get(i));
             }
-
+                          
+            vectorStoreService.deleteBySession(sessionId);  // added to delete previous chunks 
             vectorStoreService.upsert(chunks);
             redisService.saveDocMetadata(sessionId, docId, file.getOriginalFilename(), chunks.size());
 
