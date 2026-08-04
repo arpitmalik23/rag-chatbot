@@ -46,7 +46,7 @@ export async function uploadPdf(file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${BASE_URL}/upload`)
-
+   onProgress = onProgress || (() => {})
     xhr.upload.onprogress = (event) => {
       if (onProgress && event.lengthComputable) {
         onProgress(Math.round((event.loaded / event.total) * 100))
