@@ -306,6 +306,53 @@ button { font-family: var(--font-display); cursor: pointer; }
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(60, 90, 160, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-card h1 { margin: 0 0 8px; font-size: 20px; text-align: center; }
+
+.auth-card input {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: var(--font-display);
+}
+.auth-card input:focus { outline: none; border-color: var(--accent); }
+
+.auth-card button[type="submit"] {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.auth-card button[type="submit"]:disabled { opacity: 0.5; }
+
+.auth-error { color: var(--danger); font-size: 12px; margin: 0; }
+
+.auth-toggle { text-align: center; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.auth-toggle button { background: none; border: none; color: var(--accent); font-size: 12px; padding: 0; }
 .dropzone:hover { border-color: var(--accent); }
 .dropzone--active { border-color: var(--accent); background: #f5f8ff; }
 

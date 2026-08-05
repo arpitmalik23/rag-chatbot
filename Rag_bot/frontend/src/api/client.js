@@ -1,3 +1,4 @@
+import { getToken } from './auth'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 const SESSION_KEY = 'ragbot_session_id'
@@ -37,39 +38,32 @@ async function handleResponse(res) {
  * Expected response shape: { docId, filename, chunkCount, sessionId }
  */
 export async function uploadPdf(file, onProgress) {
-  const sessionId = getSessionId()
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('sessionId', sessionId)
+    const formData = new FormData()
+    formData.append('file', file)
 
-  // Use XHR instead of fetch so we can report upload progress
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${BASE_URL}/upload`)
-   onProgress = onProgress || (() => {})
-    xhr.upload.onprogress = (event) => {
-      if (onProgress && event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100))
-      }
-    }
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${BASE_URL}/upload`)
+      xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
 
-    xhr.onload = () => {
-      try {
-        const data = JSON.parse(xhr.responseText)
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(data)
-        } else {
-          reject(new Error(data.message || `Upload failed (${xhr.status})`))
+      xhr.upload.onprogress = (event) => {
+        if (onProgress && event.lengthComputable) {
+          onProgress(Math.round((event.loaded / event.total) * 100))
         }
-      } catch (err) {
-        reject(new Error('Upload failed: invalid server response'))
       }
-    }
-
-    xhr.onerror = () => reject(new Error('Network error during upload'))
-    xhr.send(formData)
-  })
-}
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data)
+          else reject(new Error(data.message || `Upload failed (${xhr.status})`))
+        } catch {
+          reject(new Error('Upload failed: invalid server response'))
+        }
+      }
+      xhr.onerror = () => reject(new Error('Network error during upload'))
+      xhr.send(formData)
+    })
+  }
 
 /**
  * Ask a question against the ingested document(s).
@@ -77,15 +71,16 @@ export async function uploadPdf(file, onProgress) {
  * Expected response shape: { answer, sources: [{ text, page, score }] }
  */
 export async function sendMessage(question) {
-  const sessionId = getSessionId()
   const res = await fetch(`${BASE_URL}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, sessionId }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ question }),
   })
   return handleResponse(res)
 }
-
 /**
  * Fetch cached chat history for the current session (optional endpoint).
  * Backend: GET /api/chat/history?sessionId=...

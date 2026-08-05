@@ -39,21 +39,24 @@ public class ChatController {
         this.redisService = redisService;
     }
 
-   @PostMapping
-    public ResponseEntity<?> chat(@Valid @RequestBody ChatRequest request) {
+    @PostMapping
+    public ResponseEntity<?> chat(@Valid @RequestBody ChatRequest request,
+                                   jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String sessionId = (String) httpRequest.getAttribute("username");
+
         try {
-            boolean hasDocument = redisService.hasAnyDocument(request.getSessionId());
+            boolean hasDocument = redisService.hasAnyDocument(sessionId);
 
             if (!hasDocument) {
                 // No PDF uploaded yet — answer as a general assistant, no retrieval.
                 String answer = llmService.generateGeneralAnswer(request.getQuestion());
-                redisService.appendChatTurn(request.getSessionId(), request.getQuestion(), answer);
+                redisService.appendChatTurn(sessionId, request.getQuestion(), answer);
                 return ResponseEntity.ok(new ChatResponse(answer, List.of()));
             }
 
             List<Float> questionEmbedding = embeddingService.embed(request.getQuestion());
             List<SourceChunk> topChunks = vectorStoreService.search(
-                    questionEmbedding, request.getSessionId(), topK);
+                    questionEmbedding, sessionId, topK);
 
             if (topChunks.isEmpty()) {
                 return ResponseEntity.ok(new ChatResponse(
@@ -62,7 +65,7 @@ public class ChatController {
             }
 
             String answer = llmService.generateAnswer(request.getQuestion(), topChunks);
-            redisService.appendChatTurn(request.getSessionId(), request.getQuestion(), answer);
+            redisService.appendChatTurn(sessionId, request.getQuestion(), answer);
             return ResponseEntity.ok(new ChatResponse(answer, topChunks));
 
         } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
@@ -75,7 +78,8 @@ public class ChatController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<?> history(@RequestParam("sessionId") String sessionId) {
+    public ResponseEntity<?> history(jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String sessionId = (String) httpRequest.getAttribute("username");
         List<ChatTurn> turns = redisService.getHistory(sessionId);
         return ResponseEntity.ok(Map.of("sessionId", sessionId, "turns", turns));
     }

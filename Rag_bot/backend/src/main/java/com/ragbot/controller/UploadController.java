@@ -37,7 +37,8 @@ public class UploadController {
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadPdf(@RequestParam("file") MultipartFile file,
-                                        @RequestParam("sessionId") String sessionId) {
+                                        jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String sessionId = (String) httpRequest.getAttribute("username");
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(errorBody("File is empty."));
