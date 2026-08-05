@@ -34,12 +34,16 @@ export default function Login({ onSuccess }) {
           onChange={(e) => setUsername(e.target.value)}
           autoFocus
         />
-        <input
+       <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          minLength={mode === 'register' ? 6 : undefined}
         />
+        {mode === 'register' && (
+          <p className="auth-hint">Minimum 6 characters</p>
+        )}
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={loading || !username || !password}>
           {loading ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
