@@ -27,6 +27,11 @@ public class JwtAuthFilter {
             @Override
             protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
                     throws ServletException, IOException {
+                        
+                   if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
+                        chain.doFilter(req, res);
+                        return;
+                    }        
 
                 String header = req.getHeader("Authorization");
                 if (header == null || !header.startsWith("Bearer ")) {
